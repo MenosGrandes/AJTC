@@ -1,0 +1,15 @@
+{
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "dependencies": {
+    "jest-silent-reporter": "^0.6.0"
+  },
+  "jest": {
+    "verbose": false,
+    "testTimeout": 15000
+  }
+}
