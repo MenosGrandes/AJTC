@@ -3,6 +3,23 @@
 #second argument is a fodler with tests
 #You have to install dtrx in python venv
 
+if ! [ -x "$(command -v dtrx)" ]; then
+  echo 'Error: dtrx is not installed.' >&2
+  exit 1
+fi
+if ! [ -x "$(command -v fdfind)" ]; then
+  echo 'Error: fdfind is not installed.' >&2
+  exit 1
+fi
+if ! [ -x "$(command -v rg)" ]; then
+  echo 'Error: ripgrep is not installed.' >&2
+  exit 1
+fi
+if ! [ -x "$(command -v npm)" ]; then
+  echo 'Error: npm is not installed.' >&2
+  exit 1
+fi
+
 pushd () {
     command pushd "$@" > /dev/null
 }
@@ -52,6 +69,7 @@ for trimmed in "${trimmed_paths[@]}"; do
 
 done
 
-rg -P '^\s*Tests' -g wynik.mg_log &> output.mg_log
+rg -P '^\s*Tests' -g wynik.mg_log | awk -F '/' '{printf("%-30s %-30s\n" , $2, $NF)}' output.mg_log | sed 's/wynik.mg_log://' &> final.mg_log
+cat final.mg_log
 echo "DONE"
 
