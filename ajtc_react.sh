@@ -1,6 +1,7 @@
 #!/bin/bash
 #First argument is a zip folder with a students work
 #second argument is a fodler with tests
+#You have to install dtrx in python venv
 
 pushd () {
     command pushd "$@" > /dev/null
