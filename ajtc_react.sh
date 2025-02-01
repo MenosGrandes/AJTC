@@ -31,7 +31,14 @@ popd () {
 ARCHIVE_NAME=$1
 TESTS_PATH=$(realpath $2)
 TESTS_PATH="$(echo $TESTS_PATH| tr -d '\r')"
+echo "TESTS_PATH"
 echo $TESTS_PATH
+pushd .
+cd $TESTS_PATH
+cd ..
+rm -rf src/*
+npm i
+popd
 
 FOLDER_NAME="${ARCHIVE_NAME%.*}"
 rm -rf $FOLDER_NAME
@@ -47,29 +54,37 @@ fdfind  -t d -Hi node_modules -X rm -rf
 
 # Use fd to find files and save trimmed paths into an array
 mapfile -t trimmed_paths < <(fdfind  -t f -Hi '^Counter.jsx$' -x bash -c '
-    trimmed="${1%/*/*/*}"
+    trimmed="${1%/*}"
     echo "$trimmed"
 ' bash {})
 
 for trimmed in "${trimmed_paths[@]}"; do
     pushd .
-    cd "$(echo $trimmed| tr -d '\r')"
+    GO_INTO="$(echo $trimmed| tr -d '\r')"
+    echo "GO INTO"
+    echo $GO_INTO
+    cd "$GO_INTO"
     TEMP_PWD="$(echo $PWD| tr -d '\r')"
 
-    rm -rf tests
-    cp -r "${TESTS_PATH}" "${TEMP_PWD}"
-    echo "Install npm"
-    npm i
-    echo "Run tests"
-    npm test run &> "wynik.mg_log"
-    echo "Sleep 5s"
-    sleep 5s
+
+    echo "Copy from ${TEMP_PWD}"
+    echo "Copy to  ${TESTS_PATH}"
+    rm -rf ${TESTS_PATH}/components
+    cp -r "${TEMP_PWD}" "${TESTS_PATH}" 
+    cd "${TESTS_PATH}"
+
+    echo "NAME"
+    NAME="$(echo ${GO_INTO} | awk -F '/' '{printf("%s" , $3)}' | tr -s ' ' '_')"
+    echo $NAME
+    anothervariable="$NAME".mg_log
+
+    npm test run &> $anothervariable
     echo "NEXT"
     popd 
 
 done
-
-rg -P '^\s*Tests' -g wynik.mg_log | awk -F '/' '{printf("%-30s %-30s\n" , $2, $NF)}' output.mg_log | sed 's/wynik.mg_log://' &> final.mg_log
-cat final.mg_log
+cd $TESTS_PATH
+rg -P '^\s*Tests' -g '*.{mg_log}' | awk -F '/' '{printf("%-35s %-35s\n" , $2, $NF)}' | sed 's/wynik.mg_log://' &> final.mg_log
+cat final.mg_log | sort
 echo "DONE"
 
