@@ -1,12 +1,12 @@
 #!/bin/bash
-# MenosGrandes #2024
+# MenosGrandes #2025
 # Very simple automatic checker for JEST JS files
 # Automatic Jest Test Checker - AJTC
 #
 # You have to run this program with an arugment
-#first argument is zip with all students work
-# You have to specify two folders in which there is a file called
-# functions.test.js
+# first argument is zip with all students work
+# You have to specify two folders named 1 and 2
+# In each put the functions.test.js
 # this file is the test file in which all tests are written for particular test
 # script will unpack the $1, and run test for each function.js file found in the $1
 # logs will be stored in logs1 and logs2 folder.
@@ -16,7 +16,7 @@
 # unrar
 # 7zip
 # all arhivers that can be used with the dtrx
-# https://github.com/dtrx-py/dtrx
+# https://github.com/dtrx-py/dtrx -> create new virtualvenv and use npm -i dtrx
 
 # npm ( provided package.json)
 #       jest installed
@@ -53,7 +53,8 @@ echo "$students_work_dir"
 
 #little cleanup
 #remove all non functions.js files
-find "$students_work_dir" ! -name 'functions.js' -type f -exec rm -f {} +
+find "$students_work_dir" ! -name 'functions.js' -type f -exec rm -f {} + 3>&1 &>/dev/null
+find "$students_work_dir" -name 'node_modules' -type d -exec rm -rd {} + 3>&1 &>/dev/null
 readarray -d '' students_work < <(find "${students_work_dir}" -name "functions.js" -print0)
 rm -rf logs1 > /dev/null
 rm -rf logs2 > /dev/null
@@ -66,9 +67,12 @@ rm -rf "2/functions.js"
 
 for i in "${students_work[@]}"
 do
+#    file=$(convmv -f iso-8859-1 -t utf8  --notest -r "$(realpath -s "$i")" )
+#   logfile=$(convmv -f iso-8859-1 -t utf8  --notest -r "$i" | cut -d'/' -f3- |cut -d'/' -f-2| tr ' /-' '_' | tr '.' '_' | tr -d "[]" | tr -s '_')
 
     file=$(realpath -s "$i")
    logfile=$(echo "$i" | cut -d'/' -f3- |cut -d'/' -f-2| tr ' /-' '_' | tr '.' '_' | tr -d "[]" | tr -s '_')
+
    printf "Students work :\n\t %s \n" "$file"
    printf "ToBeLogged Into:\n\t %s \n" "$logfile"
    #get this file and put it as a link
