@@ -1,0 +1,7 @@
+{
+  "compact": true,
+  "controlFlowFlattening": true,
+  "controlFlowFlatteningThreshold": 0.75,
+  "stringArray": true,
+  "stringArrayEncoding": ["base64"]
+}
