@@ -1,97 +1,106 @@
 #!/bin/bash
-# MenosGrandes #2025
-# Very simple automatic checker for JEST JS files
-# Automatic Jest Test Checker - AJTC
-#
-# You have to run this program with an arugment
-# first argument is zip with all students work
-# You have to specify two folders named 1 and 2
-# In each put the functions.test.js
-# this file is the test file in which all tests are written for particular test
-# script will unpack the $1, and run test for each function.js file found in the $1
-# logs will be stored in logs1 and logs2 folder.
+# AJTC React grading script using Podman containers
+# Usage: ./ajtc_react.sh students_archive.zip 
+# INSTRUCTION:
+# Go into sharepoint, get Submitted files from group, download as a zip
+# Go into assignment download tests, unpack tests and put them into project folder
+# in project folder run:
+# npm i
+# copy zip with student work to the same folder as the ajtc.sh
+# run ./ajtc.sh OneDriveSomeDate.zip
+# it will print out something like this:
+# Unpacking student submissions...
+# Done unpacking
+# Running tests for: /home/mg/AJTC/OneDrive_2026-05-01_2/Submitted files/StudentName/OOJS - First Graded Test/Wersja 1/functions (2) 2/functions (1)/functions.js
+
+# In the  folder named 'outputs_' that will be created there will be each output from student work.
+# The summary in in the final.mg_log printed in a table.
+
+# WARNING!
+# STUDENTS NAME CONTAINS NON UTF8 CHARACTERS IN MOST CASES THERE WILL BE EIGHTER ? OR _ YOU HAVE TO FIGURE IT OUT
+
+# REQUIREMENTS:
+# DTRX FDFIND (FD) RIPGREP
+# IN Ubuntu based use
+# sudo apt install ripgrep fd-find dtrx
 
 
-#prerequisite
-# unrar
-# 7zip
-# all arhivers that can be used with the dtrx
-# https://github.com/dtrx-py/dtrx -> create new virtualvenv and use npm -i dtrx
-
-# npm ( provided package.json)
-#       jest installed
-
-# ripgrep for grep 
-
-if ! command -v unrar &> /dev/null
-then
-    echo "unrar could not be found. Installing!"
+ARCHIVE_NAME=$1
+if [ -z "$ARCHIVE_NAME" ]; then
+    echo "Usage: $0 <students_archive.zip>"
+    exit 1
 fi
 
-if ! command -v dtrx &> /dev/null
-then
-    echo "dtrx could not be found. Installing!"
-fi
-#
-npm i
-
-
-#remove previous files
-toRemove=$(echo "$1" | cut -d'.' -f1)
-echo "Removing $toRemove"
-rm -rf "$toRemove" 
-
-##unpack all archives
-echo "Unpacking!"
-dtrx -r -n "$1"
-echo "Unpacked!"
-
-#find all functions.js files
-students_work_dir=${1%.*}
-
-echo "$students_work_dir"
-
-#little cleanup
-#remove all non functions.js files
-find "$students_work_dir" ! -name 'functions.js' -type f -exec rm -f {} + 3>&1 &>/dev/null
-find "$students_work_dir" -name 'node_modules' -type d -exec rm -rd {} + 3>&1 &>/dev/null
-readarray -d '' students_work < <(find "${students_work_dir}" -name "functions.js" -print0)
-rm -rf logs1 > /dev/null
-rm -rf logs2 > /dev/null
-mkdir -p logs1
-mkdir -p logs2
-
-
-rm -rf "1/functions.js"
-rm -rf "2/functions.js"
-
-for i in "${students_work[@]}"
-do
-#    file=$(convmv -f iso-8859-1 -t utf8  --notest -r "$(realpath -s "$i")" )
-#   logfile=$(convmv -f iso-8859-1 -t utf8  --notest -r "$i" | cut -d'/' -f3- |cut -d'/' -f-2| tr ' /-' '_' | tr '.' '_' | tr -d "[]" | tr -s '_')
-
-    file=$(realpath -s "$i")
-   logfile=$(echo "$i" | cut -d'/' -f3- |cut -d'/' -f-2| tr ' /-' '_' | tr '.' '_' | tr -d "[]" | tr -s '_')
-
-   printf "Students work :\n\t %s \n" "$file"
-   printf "ToBeLogged Into:\n\t %s \n" "$logfile"
-   #get this file and put it as a link
-   ln -s "$file" "1/functions.js"
-   ln -s "$file" "2/functions.js"
-
-   npm test 1 &> "logs1/$logfile.mg_log"
-   npm test 2 &> "logs2/$logfile".mg_log
-
-   rm -rf "1/functions.js"
-   rm -rf "2/functions.js"
-   printf "\n"
-
+# Check required commands
+for cmd in dtrx fdfind rg npm realpath; do
+    if ! command -v $cmd &> /dev/null; then
+        echo "Error: $cmd is not installed." >&2
+        exit 1
+    fi
 done
 
-rg '^Tests:' -g "*.mg_log"
+pushd () { command pushd "$@" > /dev/null; }
+popd () { command popd "$@" > /dev/null; }
 
 
 
+ pushd .
+ 
+ # Prepare folder for student submissions
+ FOLDER_NAME="${ARCHIVE_NAME%.*}"
+ rm -rf "${FOLDER_NAME}"
+ echo "Unpacking student submissions..."
+ dtrx -r -n "$ARCHIVE_NAME"
+ echo "Done unpacking"
+ 
+ cd "${FOLDER_NAME}"
+ 
+ # Clean up archives, node_modules, __MACOSX, spictures
+ find . -type d -empty -delete
+ fdfind -Hitf '\.(zip|tar|tar\.gz|tgz|tar\.bz2|tbz2|tar\.xz|txz|7z|rar|iso|gz|bz2|xz|lzma|zst|cab|ar|deb|rpm)$' -X rm -rf
+ fdfind -t d -Hi node_modules -X rm -rf
+ fdfind -t d -Hi __MACOSX -X rm -rf
+ fdfind -Hitf '\.(png|jpg|bmp)$' -X rm -rf
+
+ popd
 
 
+rm -rf ./project/functions.js
+PWD=$(pwd)
+OUTPUT_DIR="${PWD}/outputs_${FOLDER_NAME}"
+rm -rf "${OUTPUT_DIR}"
+mkdir -p "${OUTPUT_DIR}"
+
+# Find all student functions.js files (folders named 'functions.js')
+mapfile -t STUDENT_COMPONENTS < <(fdfind  -g 'functions.js' --hidden --no-ignore)
+
+for STUDENT_PATH in "${STUDENT_COMPONENTS[@]}"; do
+
+    # Absolute path for students work
+    STUDENT_ABS_PATH="$(realpath "$STUDENT_PATH")"
+
+    # Generate safe student name for logs
+    NAME="$(echo "$STUDENT_PATH" | tr '/' '_' | tr ' ' '_' | sed -E 's/.*Submitted_files_(.*)_src_components_.*/\1/')"
+    LOG_FILE="${OUTPUT_DIR}/${NAME}.mg_log"
+    echo "Running tests for: ${STUDENT_ABS_PATH}"
+    rm -rf ./project/functions.js
+    cp -f "${STUDENT_ABS_PATH}" ./project
+    pushd .
+    cd ./project
+    npm run test &> "${LOG_FILE}" 
+    popd 
+    done
+
+wait
+echo "All students processed."
+
+# Collect summaries
+cd "${OUTPUT_DIR}"
+rg -P '^\s*Summary' -g '*.{mg_log}' \
+    | awk -F '/' '{printf "%-50s %s %s\n", $NF, $3, $4}' \
+    | sed 's/.mg_log:Summary//' \
+    | sort -t '|' -k2,2nr \
+    | column -t > final.mg_log
+
+echo "DONE"
 
