@@ -57,10 +57,10 @@ popd () { command popd "$@" > /dev/null; }
  
  # Clean up archives, node_modules, __MACOSX, spictures
  find . -type d -empty -delete
- fdfind -Hitf '\.(zip|tar|tar\.gz|tgz|tar\.bz2|tbz2|tar\.xz|txz|7z|rar|iso|gz|bz2|xz|lzma|zst|cab|ar|deb|rpm)$' -X rm -rf
- fdfind -t d -Hi node_modules -X rm -rf
- fdfind -t d -Hi __MACOSX -X rm -rf
- fdfind -Hitf '\.(png|jpg|bmp)$' -X rm -rf
+ fdfind -HI '\.(zip|tar|tar\.gz|tgz|tar\.bz2|tbz2|tar\.xz|txz|7z|rar|iso|gz|bz2|xz|lzma|zst|cab|ar|deb|rpm)$' -X rm -rf
+ fdfind -t d -HI node_modules -X rm -rf
+ fdfind -t d -HI __MACOSX -X rm -rf
+ fdfind -HI '\.(png|jpg|bmp)$' -X rm -rf
 
  popd
 
