@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
+  },
+  "dependencies": {
+    "oxc-minify": "^0.133.0",
+    "oxfmt": "^0.52.0"
+  }
+}
