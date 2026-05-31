@@ -1,6 +1,7 @@
 #!/bin/bash
+
 # AJTC React grading script using Podman containers
-# Usage: ./ajtc_react.sh students_archive.zip 
+# Usage: ./ajtc_react.sh students_archive.zip
 # INSTRUCTION:
 # Go into sharepoint, get Submitted files from group, download as a zip
 # Go into assignment download tests, unpack tests and put them into project folder
@@ -24,6 +25,9 @@
 # IN Ubuntu based use
 # sudo apt install ripgrep fd-find dtrx
 
+DIR="${BASH_SOURCE%/*}"
+if [[ ! -d "$DIR" ]]; then DIR="$PWD"; fi
+. "$DIR/core/bash/utils.sh"
 
 ARCHIVE_NAME=$1
 if [ -z "$ARCHIVE_NAME" ]; then
@@ -31,76 +35,32 @@ if [ -z "$ARCHIVE_NAME" ]; then
     exit 1
 fi
 
-# Check required commands
-for cmd in dtrx fdfind rg npm realpath; do
-    if ! command -v $cmd &> /dev/null; then
-        echo "Error: $cmd is not installed." >&2
-        exit 1
-    fi
-done
+check_required_commands
 
-pushd () { command pushd "$@" > /dev/null; }
-popd () { command popd "$@" > /dev/null; }
+install_npm "${DIR}"/project
 
+STUDENTS_WORK_DIR=$(unpack_student_work "${ARCHIVE_NAME}")
 
+clean_students_work_wrapper() {
+    local CMD_TO_RUN
+    CMD_TO_RUN="clean_students_work \"$STUDENTS_WORK_DIR\""
+    (progress_bar "${CMD_TO_RUN}" "Clean_students_work") >&2
+}
 
- pushd .
- 
- # Prepare folder for student submissions
- FOLDER_NAME="${ARCHIVE_NAME%.*}"
- rm -rf "${FOLDER_NAME}"
- echo "Unpacking student submissions..."
- dtrx -r -n "$ARCHIVE_NAME"
- echo "Done unpacking"
- 
- cd "${FOLDER_NAME}"
- 
- # Clean up archives, node_modules, __MACOSX, spictures
- find . -type d -empty -delete
- fdfind -t f -HI '\.(zip|tar|tar\.gz|tgz|tar\.bz2|tbz2|tar\.xz|txz|7z|rar|iso|gz|bz2|xz|lzma|zst|cab|ar|deb|rpm)$' -X rm -f
- fdfind -t d -HI node_modules -X rm -rf
- fdfind -t d -HI __MACOSX -X rm -rf
- fdfind -t f -HI '\.(png|jpg|bmp)$' -X rm -rf
+clean_students_work_wrapper
+TEST_OUTPUT_DIR=$(prerepare_project "${STUDENTS_WORK_DIR}")
 
- popd
+mapfile -t STUDENT_COMPONENTS < <(get_all_students_work)
 
-
-rm -rf ./project/functions.js
-PWD=$(pwd)
-OUTPUT_DIR="${PWD}/outputs_${FOLDER_NAME}"
-rm -rf "${OUTPUT_DIR}"
-mkdir -p "${OUTPUT_DIR}"
-
-# Find all student functions.js files (folders named 'functions.js')
-mapfile -t STUDENT_COMPONENTS < <(fdfind  -g 'functions.js' --hidden --no-ignore)
-
-for STUDENT_PATH in "${STUDENT_COMPONENTS[@]}"; do
-
-    # Absolute path for students work
-    STUDENT_ABS_PATH="$(realpath "$STUDENT_PATH")"
-
-    # Generate safe student name for logs
-    NAME="$(echo "$STUDENT_PATH" | tr '/' '_' | tr ' ' '_' | sed -E 's/.*Submitted_files_(.*)_src_components_.*/\1/')"
-    LOG_FILE="${OUTPUT_DIR}/${NAME}.mg_log"
-    echo "Running tests for: ${STUDENT_ABS_PATH}"
-    rm -rf ./project/functions.js
-    cp -f "${STUDENT_ABS_PATH}" ./project
-    pushd .
-    cd ./project
-    npm run test &> "${LOG_FILE}" 
-    popd 
+run_all_students_work() {
+    for STUDENT_PATH in "${STUDENT_COMPONENTS[@]}"; do
+        run_test "${STUDENT_PATH}" "${TEST_OUTPUT_DIR}"
     done
+}
 
-wait
-echo "All students processed."
+progress_bar run_all_students_work "Running tests!"
 
-# Collect summaries
-cd "${OUTPUT_DIR}"
-rg -P '^\s*Summary' -g '*.{mg_log}' \
-    | awk -F '/' '{printf "%-50s %s %s\n", $NF, $3, $4}' \
-    | sed 's/.mg_log:Summary//' \
-    | sort -t '|' -k2,2nr \
-    | column -t > final.mg_log
-
-echo "DONE"
-
+collect_summary "${TEST_OUTPUT_DIR}"
+REAL_PATH_STUDENTS_DIR=$(realpath "${STUDENTS_WORK_DIR}")
+install_npm .
+make --no-print-directory run -C "${DIR}"/plagiarism-detector DIR="${REAL_PATH_STUDENTS_DIR}" STRIP_PREFIX="Submitted files"

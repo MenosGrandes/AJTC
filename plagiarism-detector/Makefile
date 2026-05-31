@@ -8,7 +8,7 @@ NORMALIZE := node $(CURDIR)/core/normalize.mjs
 run: build normalize compare
 
 build:
-	cargo build --release
+	@cargo build --release --quiet
 
 FILE_PATTERN := $(or $(FILE_NAME),*.js)
 
@@ -16,8 +16,8 @@ normalize:
 ifndef DIR
 	$(error DIR is required)
 endif
-	rm -rf $(NORMALIZED_DIR)
-	@find "$(DIR)" -name '$(FILE_PATTERN)' -type f -print0 | xargs -0 -P0 -I{} sh -c '\
+	@rm -rf $(NORMALIZED_DIR)
+	@find $(DIR) -name '$(FILE_PATTERN)' -type f -print0 | xargs -0 -P0 -I{} sh -c '\
 	rel=$$(realpath --relative-to="$(DIR)" "{}"); \
 	mkdir -p "$(NORMALIZED_DIR)/$$(dirname "$$rel")"; \
 	$(NORMALIZE) "{}" > "$(NORMALIZED_DIR)/$$rel"'
@@ -25,12 +25,12 @@ endif
 
 compare:
 ifdef STRIP_PREFIX
-	$(BINARY) --dir "$(NORMALIZED_DIR)" --threshold $(THRESHOLD) --strip-prefix "$(STRIP_PREFIX)"
+	@$(BINARY) --dir "$(NORMALIZED_DIR)" --threshold $(THRESHOLD) --strip-prefix "$(STRIP_PREFIX)" || true
 else
-	$(BINARY) --dir "$(NORMALIZED_DIR)" --threshold $(THRESHOLD)
+	@$(BINARY) --dir "$(NORMALIZED_DIR)" --threshold $(THRESHOLD) || true
 endif
 
 clean:
-	rm -rf $(NORMALIZED_DIR) target/
+	@rm -rf $(NORMALIZED_DIR) target/
 
 include test.mk
