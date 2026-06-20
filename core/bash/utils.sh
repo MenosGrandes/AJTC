@@ -43,7 +43,7 @@ clean_students_work() {
     popd || exit
 }
 get_all_students_work() {
-    fdfind -g 'functions.js' --hidden --no-ignore | while IFS= read -r file; do
+    fdfind -g -t f 'functions.js' --hidden --no-ignore | while IFS= read -r file; do
         echo "$file"
     done
 }
@@ -70,15 +70,22 @@ run_test() {
     local OUTPUT_DIR
 
     STUDENT_ABS_PATH="$(realpath "$1")"
+
+
+        
     NAME="$(echo "${1}" | tr '/' '_' | tr ' ' '_' | sed -E 's/.*Submitted_files_(.*)_src_components_.*/\1/')"
     OUTPUT_DIR="${2}"
     LOG_FILE="${OUTPUT_DIR}/${NAME}.mg_log"
+
     rm -rf ./project/functions.js
     cp -f "${STUDENT_ABS_PATH}" ./project
     pushd .
     cd ./project
     npm run test &>"${LOG_FILE}" || true
     popd
+    return 
+
+
 }
 
 prerepare_project() {
